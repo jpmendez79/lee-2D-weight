@@ -12,9 +12,7 @@ The best way to check if your install is correct is to start a python instance f
 Then try to import the ROOT library
 
 #+begin_src python
-  import ROOT# Read config file
-config = read_config_file("lee_2d.conf")
-
+import ROOT
 #+end_src
 
 An error indicates that your python installation cannot see the root libraries and the script will fail.
@@ -27,6 +25,6 @@ Edit the following line with the path to your configuration file. Use the sample
 This is significant. Your last line must not have a comma. Do not change the names of these options.
 #+begin_src python
   # Read config file
-config = read_config_file("lee_2d.conf")
+  config = read_config_file("lee_2d.conf")
 #+end_src
 

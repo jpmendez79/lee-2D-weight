@@ -106,7 +106,7 @@ new_weight = array('f', [0])
 new_branch = T_PFeval_ttree.Branch("truth_2Dlee_weight", new_weight, "truth_2Dlee_weight/F")
 
 loop = 0
-for entry in islice(T_PFeval_ttree, 10):
+for entry in islice(T_PFeval_ttree, 2000):
 # for entry in T_PFeval_ttree:
     if debug is True:
         print("Entry", loop)
@@ -138,6 +138,7 @@ for entry in islice(T_PFeval_ttree, 10):
     if debug is True:
         print("New Branch truth_2Dlee_weight: ", entry.truth_2Dlee_weight)
 
+root_file.cd("wcpselection")
 T_PFeval_ttree.Write("", ROOT.TObject.kOverwrite)
 print("Updated T_PFeval_ttree written to file")
 

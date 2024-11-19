@@ -5,6 +5,7 @@
 import ROOT
 import ast
 import sys
+import argparse
 import time
 from itertools import islice
 from array import array
@@ -105,17 +106,43 @@ def assign_weight(xbin, ybin):
 
     return assigned_weight
 
+# Initialize the parser
+parser = argparse.ArgumentParser(description="A script to add weights to T_PFeval TTree.")
+
+parser.add_argument("-q", "--quiet", action="store_true", help="Suppress all script terminal output.")
+parser.add_argument("-c", "--config", type=str, help="Specify a configuration file.")
+parser.add_argument("-v", "--verbose", action="store_true", help="Turn on all debugging messages. This overrides the -q option.")
+# Add the positional argument for the filename
+parser.add_argument("filename", nargs="?", help="The root file you want to reweight.")
+
+# Parse the arguments
+args = parser.parse_args()
+
+# Check if the filename is missing
+if args.filename is None:
+    print("Error: You must provide a root file as the last argument.")
+    parser.print_help()  # Print the help message
+    sys.exit(1)
+if args.config is None:
+    print("Error: You must provide a config file path using -c.")
+    sys.exit(1)
+
+# Access the arguments
+if args.config:
+    print(f"Using configuration file: {args.config}")
+print(f"Processing file: {args.filename}")
+
 
 # Set this to true if you want to see all my print statements I used to debug
-debug = False
+# debug = False
 
 
 # Read config file
-config = read_config_file("lee_2d.conf")
+config = read_config_file(args.config)
 
 # Read in root file
 # Hardcoded for testing purposes
-root_file = ROOT.TFile.Open("test_bnb_intrinsic_nue_overlay_run1.root", "UPDATE")
+root_file = ROOT.TFile.Open(args.filename, "UPDATE")
 if not root_file or root_file.IsZombie():
     print("Error: Unable to open the file.")
 else:
@@ -134,35 +161,36 @@ new_branch = T_PFeval_ttree.Branch("truth_2Dlee_weight", new_weight, "truth_2Dle
 loop = 0
 for entry in islice(T_PFeval_ttree, 2000):
 # for entry in T_PFeval_ttree:
-    if debug is True:
+    if args.verbose is True:
         print("Entry", loop)
         print("truth_showerKE", entry.truth_showerKE)
 
     # Convert from GeV to MeV
     showerKE_MeV = 1000 * entry.truth_showerKE
-    if debug is True:
+    if args.verbose is True:
         print(showerKE_MeV)
     # Calculate Cos theta using four momenta
     four_momenta = ROOT.TLorentzVector(entry.truth_showerMomentum[0], entry.truth_showerMomentum[1], entry.truth_showerMomentum[2], entry.truth_showerMomentum[3])
     cos_theta = four_momenta.CosTheta()
-    if debug is True:
+    if args.verbose is True:
         print("Cos Theta:", cos_theta)
     # Bin the x and y values
     xbin = find_bin(showerKE_MeV, config.get("x_bin_edges"))
     ybin = find_bin(cos_theta, config.get("y_bin_edges"))
-    if debug is True:
+    if args.verbose is True:
         print(xbin)
         print(ybin)
 
     # Assign a weight
     new_weight[0] = assign_weight(xbin, ybin)
-    if debug is True:
+    if args.verbose is True:
         print(new_weight)
 
     entry.Fill()
-    progressBar(loop, 2000, suffix="Processing")
+    if args.quiet is False:
+        progressBar(loop, 2000, suffix="Processing")
     loop = loop + 1
-    if debug is True:
+    if args.verbose is True:
         print("New Branch truth_2Dlee_weight: ", entry.truth_2Dlee_weight)
 
 

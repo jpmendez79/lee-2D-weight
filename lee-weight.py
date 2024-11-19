@@ -4,8 +4,34 @@
 
 import ROOT
 import ast
+import sys
+import time
 from itertools import islice
 from array import array
+
+def progressBar(count_value, total, spinner_chars="/-\|", suffix=''):
+    """
+    Displays a progress bar with a spinning element and a moving '>' character.
+    
+    Args:
+    - count_value: Current count value in the loop.
+    - total: Total value for the loop.
+    - spinner_chars: Characters used for the spinner (rotating effect).
+    - suffix: A string to append at the end of the progress bar.
+    """
+    spinner = spinner_chars[count_value % len(spinner_chars)]
+    bar_length = 50  # Adjusted for better terminal fit
+    filled_up_length = int(bar_length * count_value / float(total))
+    percentage = round(100.0 * count_value / float(total), 1)
+    
+    # Construct the bar with a moving '>' character
+    bar = '=' * filled_up_length
+    if filled_up_length < bar_length:
+        bar += '>'
+    bar = bar.ljust(bar_length, '-')
+    
+    sys.stdout.write(f'\r[{spinner}] [{bar}] {percentage}% ... {suffix}')
+    sys.stdout.flush()
 
 def read_config_file(file_path):
     config = {}
@@ -134,13 +160,15 @@ for entry in islice(T_PFeval_ttree, 2000):
         print(new_weight)
 
     entry.Fill()
+    progressBar(loop, 2000, suffix="Processing")
     loop = loop + 1
     if debug is True:
         print("New Branch truth_2Dlee_weight: ", entry.truth_2Dlee_weight)
 
+
 root_file.cd("wcpselection")
 T_PFeval_ttree.Write("", ROOT.TObject.kOverwrite)
-print("Updated T_PFeval_ttree written to file")
+print("\nUpdated T_PFeval_ttree written to file")
 
 root_file.Close()
 print("Root file closed")

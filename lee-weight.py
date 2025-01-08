@@ -1,6 +1,6 @@
 # lee-weight.py
 # Created by Jesse Mendez <jmend46@lsu.edu>
-# Updated 11/08/2024
+# Updated 11/27/2024
 
 import ROOT
 import ast
@@ -22,6 +22,7 @@ def progressBar(count_value, total, spinner_chars="/-\|", suffix=''):
     """
     spinner = spinner_chars[count_value % len(spinner_chars)]
     bar_length = 50  # Adjusted for better terminal fit
+    # Ensure that the filled length doesn't exceed the bar length
     filled_up_length = int(bar_length * count_value / float(total))
     percentage = round(100.0 * count_value / float(total), 1)
     
@@ -30,6 +31,11 @@ def progressBar(count_value, total, spinner_chars="/-\|", suffix=''):
     if filled_up_length < bar_length:
         bar += '>'
     bar = bar.ljust(bar_length, '-')
+    
+    # Ensure the percentage never exceeds 100%
+    if count_value >= total:
+        percentage = 100
+        bar = '=' * bar_length  # Make sure the bar is full when 100%
     
     sys.stdout.write(f'\r[{spinner}] [{bar}] {percentage}% ... {suffix}')
     sys.stdout.flush()
@@ -141,7 +147,6 @@ print(f"Processing file: {args.filename}")
 config = read_config_file(args.config)
 
 # Read in root file
-# Hardcoded for testing purposes
 root_file = ROOT.TFile.Open(args.filename, "UPDATE")
 if not root_file or root_file.IsZombie():
     print("Error: Unable to open the file.")
@@ -149,28 +154,35 @@ else:
     print("File opened successfully.")
 
 # Read in the ttree that contains our criteria variables
-# This will hold our new variable too
+# Read in ttree that will be the final place for our new variable
 T_PFeval_ttree = root_file['wcpselection/T_PFeval']
-
+tree_eval = root_file.Get("wcpselection/T_eval")
 # Create new branch
 new_weight = array('f', [0])
 
 
-new_branch = T_PFeval_ttree.Branch("truth_2Dlee_weight", new_weight, "truth_2Dlee_weight/F")
+new_branch = tree_eval.Branch("weight_2Dlee", new_weight, "weight_2Dlee/F")
+total_events = tree_eval.GetEntries()
+update_interval = 100
+print(total_events)
+for i, entry in enumerate(islice(tree_eval, total_events)):    
+# for entry in tree_eval:        
+    progressBar(i, total_events, suffix="Processing")
 
-loop = 0
-for entry in islice(T_PFeval_ttree, 2000):
-# for entry in T_PFeval_ttree:
+    # Load variables for calculation
+    T_PFeval_ttree.GetEntry(i)
+    truth_showerKE = getattr(T_PFeval_ttree, "truth_showerKE")
+    truth_showerMomentum = getattr(T_PFeval_ttree, "truth_showerMomentum")
     if args.verbose is True:
-        print("Entry", loop)
-        print("truth_showerKE", entry.truth_showerKE)
+        print("Entry", i)
+        print("truth_showerKE", truth_showerKE)
 
     # Convert from GeV to MeV
-    showerKE_MeV = 1000 * entry.truth_showerKE
+    showerKE_MeV = 1000 * truth_showerKE
     if args.verbose is True:
         print(showerKE_MeV)
     # Calculate Cos theta using four momenta
-    four_momenta = ROOT.TLorentzVector(entry.truth_showerMomentum[0], entry.truth_showerMomentum[1], entry.truth_showerMomentum[2], entry.truth_showerMomentum[3])
+    four_momenta = ROOT.TLorentzVector(truth_showerMomentum[0], truth_showerMomentum[1], truth_showerMomentum[2], truth_showerMomentum[3])
     cos_theta = four_momenta.CosTheta()
     if args.verbose is True:
         print("Cos Theta:", cos_theta)
@@ -181,22 +193,21 @@ for entry in islice(T_PFeval_ttree, 2000):
         print(xbin)
         print(ybin)
 
+    # Load the T-eval entry to copy over new variable
     # Assign a weight
     new_weight[0] = assign_weight(xbin, ybin)
     if args.verbose is True:
         print(new_weight)
-
-    entry.Fill()
-    if args.quiet is False:
-        progressBar(loop, 2000, suffix="Processing")
-    loop = loop + 1
+        
+    new_branch.Fill()
+    i = i+1
     if args.verbose is True:
         print("New Branch truth_2Dlee_weight: ", entry.truth_2Dlee_weight)
 
 
 root_file.cd("wcpselection")
-T_PFeval_ttree.Write("", ROOT.TObject.kOverwrite)
-print("\nUpdated T_PFeval_ttree written to file")
+tree_eval.Write("", ROOT.TObject.kOverwrite)
+print("\nUpdated T_eval_ttree written to file")
 
 root_file.Close()
 print("Root file closed")

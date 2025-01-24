@@ -1,5 +1,8 @@
 * lee-weight.py
-lee-weight.py is python script used to add weights according to the 2D Lee model found here
+lee-weight.py is python script used to add weights according to the 2D Lee model found.
+
+*This program modifies the root file it is run on. Make backups before you run this tool*
+
 ** Prerequisites
 You must have python and root installed. lee-weight uses PyROOT Python bindings from the [[https://root.cern/][ROOT Data Analysis Framework]].
 
@@ -17,14 +20,23 @@ import ROOT
 
 An error indicates that your python installation cannot see the root libraries and the script will fail.
 ** Usage
-For now edit the path in root_file with the path to the root file you want to edit. This program will modify the root file so make sure you create a copy and run this on the file.
+positional arguments:
+  filename              The root file you want to reweigh.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -q, --quiet           Suppress all script terminal output.
+  -c CONFIG, --config CONFIG
+                        Specify a configuration file.
+  -v, --verbose         Turn on all debugging messages. This overrides the -q
+                        option.
+
+Users that are interested in using this tool in a script will probably want to use the quiet option to suppress all terminal output.                         
 ** Configuration
-Edit the following line with the path to your configuration file. Use the sample configuration file provided if you want to change the weights.
+Use the -c option to specify a configuration file. You can many different configurations but only one file is read at a time. Use the example file provided as a template if you wish to change the weights.
+
+At this time all weights are written to the T_eval TTree. You must edit the python script itself if you want to save your variable to a different location.
 
 *Note the last line in "weights" is missing a comma*
 This is significant. Your last line must not have a comma. Do not change the names of these options.
-#+begin_src python
-  # Read config file
-  config = read_config_file("lee_2d.conf")
-#+end_src
 

@@ -124,11 +124,23 @@ parser.add_argument("filename", nargs="?", help="The root file you want to rewei
 # Parse the arguments
 args = parser.parse_args()
 
-# Check if the filename is missing
-if args.filename is None:
-    print("Error: You must provide a root file as the last argument.")
-    parser.print_help()  # Print the help message
-    sys.exit(1)
+# Collect file paths
+file_paths = []
+
+# Check if stdin is piped
+if not sys.stdin.isatty():
+    # Read file paths from stdin
+    file_paths.extend([line.strip() for line in sys.stdin if line.strip()])
+
+# Add the filename from the command-line argument, if provided
+if args.filename:
+    file_paths.append(args.filename)
+
+# If no file paths were provided, exit with an error
+if not file_paths:
+    parser.error("No input provided. Please pipe file paths or specify a file as an argument.")
+
+# Config error    
 if args.config is None:
     print("Error: You must provide a config file path using -c.")
     sys.exit(1)
@@ -136,7 +148,7 @@ if args.config is None:
 # Access the arguments
 if args.config:
     print(f"Using configuration file: {args.config}")
-print(f"Processing file: {args.filename}")
+# print(f"Processing file: {args.filename}")
 
 
 # Set this to true if you want to see all my print statements I used to debug
@@ -147,67 +159,68 @@ print(f"Processing file: {args.filename}")
 config = read_config_file(args.config)
 
 # Read in root file
-root_file = ROOT.TFile.Open(args.filename, "UPDATE")
-if not root_file or root_file.IsZombie():
-    print("Error: Unable to open the file.")
-else:
-    print("File opened successfully.")
-
-# Read in the ttree that contains our criteria variables
-# Read in ttree that will be the final place for our new variable
-T_PFeval_ttree = root_file['wcpselection/T_PFeval']
-tree_eval = root_file.Get("wcpselection/T_eval")
-# Create new branch
-new_weight = array('f', [0])
-
-
-new_branch = tree_eval.Branch("weight_2Dlee", new_weight, "weight_2Dlee/F")
-total_events = tree_eval.GetEntries()
-update_interval = 100
-print(total_events)
-for i, entry in enumerate(islice(tree_eval, total_events)):    
-# for entry in tree_eval:        
-    progressBar(i, total_events, suffix="Processing")
-
-    # Load variables for calculation
-    T_PFeval_ttree.GetEntry(i)
-    truth_showerKE = getattr(T_PFeval_ttree, "truth_showerKE")
-    truth_showerMomentum = getattr(T_PFeval_ttree, "truth_showerMomentum")
-    if args.verbose is True:
-        print("Entry", i)
-        print("truth_showerKE", truth_showerKE)
-
-    # Convert from GeV to MeV
-    showerKE_MeV = 1000 * truth_showerKE
-    if args.verbose is True:
-        print(showerKE_MeV)
-    # Calculate Cos theta using four momenta
-    four_momenta = ROOT.TLorentzVector(truth_showerMomentum[0], truth_showerMomentum[1], truth_showerMomentum[2], truth_showerMomentum[3])
-    cos_theta = four_momenta.CosTheta()
-    if args.verbose is True:
-        print("Cos Theta:", cos_theta)
-    # Bin the x and y values
-    xbin = find_bin(showerKE_MeV, config.get("x_bin_edges"))
-    ybin = find_bin(cos_theta, config.get("y_bin_edges"))
-    if args.verbose is True:
-        print(xbin)
-        print(ybin)
-
-    # Load the T-eval entry to copy over new variable
-    # Assign a weight
-    new_weight[0] = assign_weight(xbin, ybin)
-    if args.verbose is True:
-        print(new_weight)
+for file_path in file_paths:
+    print(file_path)
+    root_file = ROOT.TFile.Open(file_path, "UPDATE")
+    if not root_file or root_file.IsZombie():
+        print("Error: Unable to open the file.")
+    else:
+        print(f"Processing file: {file_path}")
         
-    new_branch.Fill()
-    i = i+1
-    if args.verbose is True:
-        print("New Branch truth_2Dlee_weight: ", entry.truth_2Dlee_weight)
+
+    # # Read in the ttree that contains our criteria variables
+    # # Read in ttree that will be the final place for our new variable
+    T_PFeval_ttree = root_file['wcpselection/T_PFeval']
+    tree_eval = root_file["wcpselection/T_eval"]
+    # Create new branch
+    new_weight = array('f', [0])
 
 
-root_file.cd("wcpselection")
-tree_eval.Write("", ROOT.TObject.kOverwrite)
-print("\nUpdated T_eval_ttree written to file")
+    new_branch = tree_eval.Branch("weight_2Dlee", new_weight, "weight_2Dlee/F")
+    total_events = tree_eval.GetEntries()
+    update_interval = 100
+    print(total_events)
+    for i, entry in enumerate(islice(tree_eval, total_events)):    
+        # for entry in tree_eval:        
+        progressBar(i, total_events, suffix="Processing")
 
-root_file.Close()
-print("Root file closed")
+        # Load variables for calculation
+        T_PFeval_ttree.GetEntry(i)
+        truth_showerKE = getattr(T_PFeval_ttree, "truth_showerKE")
+        truth_showerMomentum = getattr(T_PFeval_ttree, "truth_showerMomentum")
+        if args.verbose is True:
+            print("Entry", i)
+            print("truth_showerKE", truth_showerKE)
+
+        # Convert from GeV to MeV
+        showerKE_MeV = 1000 * truth_showerKE
+        if args.verbose is True:
+            print(showerKE_MeV)
+            # Calculate Cos theta using four momenta
+        four_momenta = ROOT.TLorentzVector(truth_showerMomentum[0], truth_showerMomentum[1], truth_showerMomentum[2], truth_showerMomentum[3])
+        cos_theta = four_momenta.CosTheta()
+        if args.verbose is True:
+            print("Cos Theta:", cos_theta)
+            # Bin the x and y values
+        xbin = find_bin(showerKE_MeV, config.get("x_bin_edges"))
+        ybin = find_bin(cos_theta, config.get("y_bin_edges"))
+        if args.verbose is True:
+            print(xbin)
+            print(ybin)
+
+        # Load the T-eval entry to copy over new variable
+        # Assign a weight
+        new_weight[0] = assign_weight(xbin, ybin)
+        if args.verbose is True:
+            print(new_weight)
+        
+        new_branch.Fill()
+        i = i+1
+        if args.verbose is True:
+            print("New Branch truth_2Dlee_weight: ", entry.truth_2Dlee_weight)
+
+    root_file.cd("wcpselection")
+    tree_eval.Write("", ROOT.TObject.kOverwrite)
+    print("\nUpdated T_eval_ttree written to file")
+    root_file.Close()
+    print("Root file closed")
